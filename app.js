@@ -1,77 +1,144 @@
-"use strict";
+"use strict"
 
-async function loadMovies() {
-  console.log("🚀 Henter movie data...");
+window.addEventListener("load", initApp);
 
+let allMovies = [];
+
+function initApp() {
+  console.log("initApp: app.js is running 🎉");
+  getMovies();
+  document
+    .querySelector("#search-input")
+    .addEventListener("input", filterMovies);
+  document
+    .querySelector("#genre-select")
+    .addEventListener("change", filterMovies);
+  document
+    .querySelector("#sort-select")
+    .addEventListener("change", filterMovies);
+}
+
+async function getMovies() {
   const response = await fetch(
     "https://raw.githubusercontent.com/cederdorff/race/refs/heads/master/data/movies.json"
   );
-  const data = await response.json();
-
-  console.log("🎬 Data modtaget:", data);
-  return data;
-
-  const moviesFromJSON = await response.json();
-
-  console.log("🎬 Movies fra JSON:", moviesFromJSON);
-  console.log("📊 Antal movies:", moviesFromJSON.length);
-  console.log("🎭 Første movie:", moviesFromJSON[0]);
-
-  return moviesFromJSON;
+  allMovies = await response.json();
+  populateGenreDropdown();
+  displayMovies(allMovies);
+}
+function displayMovies(movies) {
+  console.log(`🎬 Viser ${movies.length} movies`);
+  document.querySelector("#movie-list").innerHTML = "";
+  for (const movie of movies) {
+    displayMovie(movie);
+  }
 }
 
-loadMovies();
-
-const movieListContainer = document.querySelector("#movie-list");
-
-function displayMovie(movieObject) {
-  const genreString = movieObject.genre.join(", ");
+function displayMovie(movie) {
+  const movieList = document.querySelector("#movie-list");
 
   const movieHTML = `
     <article class="movie-card" tabindex="0">
-      <img src="${movieObject.image}" 
-           alt="Poster of ${movieObject.title}" 
+      <img src="${movie.image}" 
+           alt="Poster of ${movie.title}" 
            class="movie-poster" />
       <div class="movie-info">
-        <h3>${movieObject.title} <span class="movie-year">(${movieObject.year})</span></h3>
-        <p class="movie-genre">${genreString}</p>
-        <p class="movie-rating">⭐ ${movieObject.rating}</p>
-        <p class="movie-director"><strong>Director:</strong> ${movieObject.director}</p>
+        <h3>${movie.title} <span class="movie-year">(${movie.year})</span></h3>
+        <p class="movie-genre">${movie.genre.join(", ")}</p>
+        <p class="movie-rating">⭐ ${movie.rating}</p>
+        <p class="movie-director"><strong>Director:</strong> ${
+          movie.director
+        }</p>
       </div>
     </article>
   `;
 
-  movieListContainer.insertAdjacentHTML("beforeend", movieHTML);
-  console.log(`${movieObject.title} tilføjet fra JSON!`);
+  movieList.insertAdjacentHTML("beforeend", movieHTML);
+
+  // Tilføj click event til den nye card
+  const newCard = movieList.lastElementChild;
+
+  newCard.addEventListener("click", function () {
+    console.log(`🎬 Klik på: "${movie.title}"`);
+    showMovieDetails(movie);
+  });
 }
 
-function displayMovies(movieArray) {
-  movieListContainer.innerHTML = "";
+function populateGenreDropdown() {
+  const genreSelect = document.querySelector("#genre-select");
+  const genres = new Set();
 
-  console.log(`🎬 Viser ${movieArray.length} movies...`);
-
-  for (const movie of movieArray) {
-    displayMovie(movie);
+  for (const movie of allMovies) {
+    for (const genre of movie.genre) {
+      genres.add(genre);
+    }
   }
 
-  console.log(`🎉 ${movieArray.length} movies vist successfully!`);
+  genreSelect.innerHTML = '<option value="all">Alle genrer</option>';
+
+  const sortedGenres = Array.from(genres).sort();
+  for (const genre of sortedGenres) {
+    genreSelect.insertAdjacentHTML(
+      "beforeend",
+      `<option value="${genre}">${genre}</option>`
+    );
+  }
 }
 
-async function loadMovies() {
-  console.log("🌐 Henter alle movies fra JSON...");
+function filterMovies() {
+  const searchValue = document.querySelector("#search-input").value.toLowerCase();
+  const genreValue = document.querySelector("#genre-select").value;
+  const sortValue = document.querySelector("#sort-select").value;
 
-  const response = await fetch(
-    "https://raw.githubusercontent.com/cederdorff/race/refs/heads/master/data/movies.json"
-  );
-  const moviesFromJSON = await response.json();
+  // Start med alle movies
+  let filteredMovies = allMovies;
 
-  console.log("📊 JSON data modtaget:", moviesFromJSON.length, "movies");
+  // TRIN 1: Filtrer på søgetekst
+  if (searchValue) {
+    filteredMovies = filteredMovies.filter(movie => {
+      return movie.title.toLowerCase().includes(searchValue);
+    });
+  }
 
-  displayMovies(moviesFromJSON);
+  // TRIN 2: Filtrer på genre
+  if (genreValue !== "all") {
+    filteredMovies = filteredMovies.filter(movie => {
+      return movie.genre.includes(genreValue);
+    });
+  }
+
+  // TRIN 3: Sorter resultater
+  if (sortValue === "title") {
+    filteredMovies.sort((a, b) => a.title.localeCompare(b.title));
+  } else if (sortValue === "year") {
+    filteredMovies.sort((a, b) => b.year - a.year); // Nyeste først
+  } else if (sortValue === "rating") {
+    filteredMovies.sort((a, b) => b.rating - a.rating); // Højeste først
+  }
+
+  displayMovies(filteredMovies);
 }
 
-loadMovies();
+function showMovieDetails(movie) {
+  console.log("📊 Viser detaljer for:", movie.title);
 
-window.addEventListener("load", initApp);
+  // Vis i alert (midlertidig løsning)
+  const movieInfo = `🎬 ${movie.title} (${movie.year})
+🎭 ${movie.genre.join(", ")}
+⭐ Rating: ${movie.rating}
+🎯 Instruktør: ${movie.director}
+👥 Skuespillere: ${movie.actors.join(", ")}
 
-let allMovies = []
+📝 ${movie.description}`;
+
+  alert(movieInfo);
+
+  // TODO: Næste gang laver vi modal dialog!
+}
+
+newCard.addEventListener("keydown", function (event) {
+  if (event.key === "Enter" || event.key === " ") {
+    event.preventDefault();
+    showMovieDetails(movie);
+  }
+});
